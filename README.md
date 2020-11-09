@@ -1,4 +1,4 @@
-# Spectral Proper Orthogonal Decomposition in Matlab
+# Bispectral Mode Decomposition in Matlab
 BMD() is 
 
 CBMD() is
