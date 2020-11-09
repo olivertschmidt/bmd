@@ -7,8 +7,8 @@ CBMD() is
 ## Files
 | File        |     Description     |
 | ------------- |:-------------|
-| bmd.m | Bispectral mode decomposition in Matlab | 
-| cbmd.m | Cross-bispectral mode decomposition in Matlab | 
+| bmd.m | Bispectral mode decomposition | 
+| cbmd.m | Cross-bispectral mode decomposition | 
 | example_1.m |  | 
 | example_2.m |  | 
 | example_3.m |  | 
