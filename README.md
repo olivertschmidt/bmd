@@ -1,4 +1,4 @@
-# Bispectral Mode Decomposition in Matlab
+# Bispectral Mode Decomposition
 BMD() is 
 
 CBMD() is
