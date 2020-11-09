@@ -15,7 +15,5 @@ CBMD() is
 | wake_Re500.mat |  | 
 | LICENSE.txt | License | 
 
-## Usage
-
-## References
+## Cite As
 [1] Schmidt, O. T., Bispectral mode decomposition of nonlinear flows, Nonlinear Dynamics, 2020  
