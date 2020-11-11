@@ -1,9 +1,9 @@
 
 % EXAMPLE 1 demonstrates the use of BMD (Bispectral Mode Decomposition) on
-% a single 2-D flow field (the streamwise velocity component of the wake
-% behind a cylinder at Re=500). No spectral estimation parameters are
-% specified, so it is left to BMD to guess the parameters. This is
-% not recommended, in general. Since the time step is not specified, BMD
+% a single-variable 2-D flow field (the streamwise velocity component of
+% the wake behind a cylinder at Re=500). No spectral estimation parameters
+% are specified, so it is left to BMD to guess the parameters. This is not
+% recommended, in general. Since the time step is not specified, BMD
 % returns the frequency index in 'f'. BMD assumes that the first index of
 % the data array is time.
 
@@ -30,7 +30,7 @@ end
 %% BMD %%
 %%%%%%%%%
 [B,P,f,idx] = bmd(u);
-[f1,f2]     = ndgrid(f);
+[f1,f2]     = ndgrid(f); % don't use meshgrid...
 
 %% Plot mode magnitude bispectrum
 figure
@@ -44,7 +44,7 @@ hold on
 %% Plot bispectral mode and interaction map for triad (k,l,k+l)
 k   = 6;
 l   = -3;
-triadIdx    = find(idx==find(f1==k&f2==l));
+triadIdx    = find(idx==find(f1==k&f2==l)); % find the linear index of the triad (k,l,k+l)
 plot(k,l,'r+'), text(k+1,l+1,['(' num2str(k) ',' num2str(l) ',' num2str(k+l) ')'])
 
 subplot(2,2,2)

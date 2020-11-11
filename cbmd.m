@@ -80,11 +80,6 @@ disp(['Mean                      : ' mean_name]);
 % obtain frequency axis
 [f,nFreq,idx,f_idx,f1_idx,f2_idx,f3_idx] = faxes(nDFT,dt,opts);
 
-% limit frequency range
-if isfield(opts,'nfreq')
-    nFreq = opts.nfreq;
-end
-
 nTriads = length(idx);
 
 % loop over number of blocks and generate Fourier realizations
@@ -339,6 +334,11 @@ f_idx   = fftshift(f_idx);
 f       = f_idx/dt/nDFT;
 fNyq_idx= -f_idx(1);
 nFreq   = numel(f_idx);
+if isfield(opts,'nfreq')
+    f_idx_max   = opts.nfreq;
+else
+    f_idx_max   = fNyq_idx;
+end
 
 region  = nan(nFreq,nFreq);
 idx     = nan(nFreq^2,1);
@@ -349,7 +349,7 @@ count   = 0;
 for i=1:nFreq
     for j=1:nFreq
         f1plus2  = f_idx(i)+f_idx(j);
-        if abs(f1plus2)<fNyq_idx
+        if abs(f1plus2)<fNyq_idx && abs(f_idx(i))<=f_idx_max && abs(f_idx(j))<=f_idx_max
             if sum(opts.regions==1)>0 && f_idx(i)>=0 && f_idx(j)>=0 && f_idx(i)>=f_idx(j)            % region #1
                 region(i,j)     = 1;
             end
@@ -390,12 +390,4 @@ f2_idx  = f2_idx(1:count);
 f3_idx  = f3_idx(1:count);
 idx     = idx(1:count);
 
-% set defaults for options for saving FFT data blocks
-if isfield(opts,'nfreq')
-    del_idx = (abs(f_idx(f1_idx))>opts.nfreq | abs(f_idx(f2_idx))>opts.nfreq);
-    f1_idx(del_idx) = [];
-    f2_idx(del_idx) = [];
-    f3_idx(del_idx) = [];
-    idx(del_idx)    = [];
-end
 end

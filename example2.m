@@ -2,9 +2,9 @@
 % parameters and regions of the mode bispectrum, and its computation for
 % data consisting of more than one variable (here the two velocity
 % components of the wake data). The modes are plotted interactively by
-% clicking on the mode bispectrum. Try setting opts.regions to 1:8 to
-% compute all regions, or [1 2 7 8] to compute regions that are
-% non-redundent with respect to complex conjugation.
+% clicking on the mode bispectrum. Try out setting 'opts.regions = 1:8',
+% but at the same time, also let 'opts.nfreq = 25' to limit the analysis to
+% -25<k,l<25.
 
 clc, clear variables
 
@@ -17,7 +17,9 @@ nOvlp       = 128;
 window      = hann(nDFT);
 dV          = (x(2,1)-x(1,1))*(y(1,2)-y(1,1));
 weight      = dV*ones(2*ny*nx,1);
-opts.regions= 1; 
+opts.regions= 1;
+% opts.regions= 1:8;
+% opts.nfreq  = 25;
 X           = zeros(nt,nx,ny,2);
 X(:,:,:,1)  = u;
 X(:,:,:,2)  = v; clear u v
@@ -51,7 +53,7 @@ while 1
     if key==27, break, end
        
     point       = getCursorInfo(dcm);
-    triadIdx    = find(idx==find(f1==point.Position(1)&f2==point.Position(2)));
+    triadIdx    = find(idx==find(f1==point.Position(1)&f2==point.Position(2)));  % find the linear index of the frequency triad {f2,f2,f1+f2}
     
     subplot(3,4,3)
     mode  = squeeze(P(1,triadIdx,:,:,1));
@@ -86,7 +88,7 @@ while 1
     subplot(3,4,12)
     mode  = abs(squeeze(P(1,triadIdx,:,:,2)).*squeeze(P(2,triadIdx,:,:,2)));
     pcolor(x,y,real(mode)), axis equal tight
-    xlabel('x'), ylabel('y'), title('\phi^v_{k\circ l}\circ\phi^v_{+}');
+    xlabel('x'), ylabel('y'), title('\phi^v_{k\circ l}\circ\phi^v_{k+l}');
     shading interp     
     
     drawnow   
