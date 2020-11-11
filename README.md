@@ -12,7 +12,7 @@ Triadic interactions are the fundamental mechanism of energy transfer in fluid f
 | cbmd.m | Cross-bispectral mode decomposition | 
 | example_1.m | BMD of single-variable, 2-D test case with default spectral estimation parameters | 
 | example_2.m | BMD of 2-variable, 2-D test case with manual specification of spectral estimation parameters and interactive visualization of modes | 
-| example_3.m | CBMD demonstration | 
+| example_3.m | Demonstration of CBMD | 
 | wake_Re500.mat | Snapshot data of the flow behind a cylinder at Re=500 | 
 | LICENSE.txt | License | 
 
