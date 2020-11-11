@@ -1,7 +1,7 @@
 # Bispectral Mode Decomposition
 `BMD()` Bispectral Mode Decomposition of multidimensional and multivariate snapshot data
 
-`CBMD()` Cross-Bispectral Mode Decomposition of two or three fields
+`CBMD()` Cross-Bispectral Mode Decomposition of two or three variables
 
 Triadic interactions are the fundamental mechanism of energy transfer in fluid flows. Bispectral mode decomposition (BMD) educes coherent flow structures that are associated with triadic interactions from experimental or numerical data. Triadic interactions are characterized by quadratic phase coupling which can be detected by the bispectrum. The proposed method maximizes an integral measure of this third-order statistic to compute modes associated with frequency triads, as well as a mode bispectrum that identifies resonant three-wave interactions. Unlike the classical bispectrum, the decomposition establishes a causal relationship between the three frequency components of a triad. This permits the distinction of sum- and difference-interactions, and the computation of interaction maps that indicate regions of nonlinear coupling. 
 
