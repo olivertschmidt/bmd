@@ -37,7 +37,7 @@ subplot(2,2,[1 3])
 pcolor(f1-0.5,f2-0.5,log(abs(B))); axis equal tight, shading flat
 xlim([0 f1(end)]); ylim([-f2(end) f2(end)/2]); 
 xlabel('k'), ylabel('l')
-title('Mode bispectrum')
+title('Mode cross-bispectrum')
 hold on
 
 %% Plot bispectral mode and interaction map for triad (k,l,k+l)

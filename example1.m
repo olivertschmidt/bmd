@@ -30,7 +30,7 @@ end
 %% BMD %%
 %%%%%%%%%
 [B,P,f,idx] = bmd(u);
-[f1,f2]     = ndgrid(f); % don't use meshgrid...
+[f1,f2]     = ndgrid(f);
 
 %% Plot mode magnitude bispectrum
 figure

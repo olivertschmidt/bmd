@@ -8,8 +8,10 @@ function [L,P,f,idx] = cbmd(X,varargin)
 % then the first index of OPTS.mean must also be the variable index.
 %
 %  References:
-%  [1] Schmidt, O. T., Bispectral mode decomposition of nonlinear flows,
-%      Nonlinear Dynamics, 2020
+%   [1] Schmidt, O. T., Bispectral mode decomposition of nonlinear flows,
+%       Nonlinear Dynamics, 2020
+%       DOI 10.1007/s11071-020-06037-z
+%       https://rdcu.be/cbg3D
 %
 % O. T. Schmidt (oschmidt@ucsd.edu)
 % Last revision: 08-Nov-2020

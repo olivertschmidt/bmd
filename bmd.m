@@ -14,8 +14,8 @@ function [L,P,f,idx] = bmd(X,varargin)
 %          \  | 3  \  |
 %            \|______\|
 %             |
-% Figure. Regions in the f1-f2 plane (choose via OPTS.regions). Triads are 
-%         expressed as frequency triplets, {f1,f2,f1+f2}, or (frequency) 
+% Figure. Regions in the f1-f2 plane (select via OPTS.regions). Triads are
+%         expressed as frequency triplets, {f1,f2,f1+f2}, or frequency
 %         index triplets, (k,l,k+l).
 %
 %  [L,P,F,IDX] = BMD(X) returns the bispectral mode decomposition of the
@@ -58,16 +58,17 @@ function [L,P,f,idx] = bmd(X,varargin)
 %                   snapshot [array of size X | {temporal mean of X}]
 %  OPTS.solver      optimizer for x*Ax [{'HeWatson'} | 'simpleit'] 
 %  OPTS.tol         tolerance for optimizer [scalar | {1e-8}] 
-%  OPTS.nfreq       restrict bispectrum computation to |l|,|k|<=OPTS.nfreq 
+%  OPTS.nfreq       restrict computation to |l|,|k|<=OPTS.nfreq 
 %                   [integer | {all}] 
 %
 %  References:
 %   [1] Schmidt, O. T., Bispectral mode decomposition of nonlinear flows,
 %       Nonlinear Dynamics, 2020
+%       DOI 10.1007/s11071-020-06037-z
+%       https://rdcu.be/cbg3D
 %
 % O. T. Schmidt (oschmidt@ucsd.edu)
 % Last revision: 08-Nov-2020
-
 
 single_prec     = false;
 if nargin==6
