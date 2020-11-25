@@ -18,3 +18,4 @@ Triadic interactions are the fundamental mechanism of energy transfer in fluid f
 
 ## Cite As
 [1] Schmidt, O. T., Bispectral mode decomposition of nonlinear flows, Nonlinear Dynamics, 2020  
+DOI 10.1007/s11071-020-06037-z
