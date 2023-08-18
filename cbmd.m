@@ -1,4 +1,4 @@
-function [L,P,f,idx] = cbmd(X,varargin)
+function [L,P,f,idx,T] = cbmd(X,varargin)
 % CBMD Cross-Bispectreal Mode Decomposition
 %
 % CBMD has the same inputs and outputs as BMD, but X must contain all three
@@ -7,6 +7,18 @@ function [L,P,f,idx] = cbmd(X,varargin)
 % R, and  X(:,3,...) = S. If a long-time mean is provided via OPTS.mean,
 % then the first index of OPTS.mean must also be the variable index.
 %
+%  [L,P,F,IDX,T] = CBMD(...) returns in T the net energy transfer into or
+%  out of f3
+%
+%  [L,P,F,IDX,T] = CBMD(X,WINDOW,WEIGHT,NOVERLAP,DT,OPTS) specifies 
+%                   additional options:
+%  OPTS.s_idx       column vector of variable indices to specify form of
+%                   quadratic nonlinear term; has to be specified along
+%                   with OPTS.qr_idx
+%  OPTS.qr_idx      array specifying variable indices of
+%                   products q*r; colums are alternating variable indices
+%                   for q snd r; one row per variable in s required
+%
 %  References:
 %   [1] Schmidt, O. T., Bispectral mode decomposition of nonlinear flows,
 %       Nonlinear Dynamics, 2020
@@ -14,8 +26,7 @@ function [L,P,f,idx] = cbmd(X,varargin)
 %       https://rdcu.be/cbg3D
 %
 % O. T. Schmidt (oschmidt@ucsd.edu)
-% Last revision: 08-Nov-2020
-
+% Last revision: 17-Aug-2023
 
 single_prec     = false;
 if nargin==6
@@ -36,7 +47,13 @@ end
 dim     = size(X);
 nt      = dim(1);
 nVar    = dim(2);
-if ~(nVar==3),  error('Second index of X must be 3 (3 variables must be provided for cross-correlation).'), end
+
+% form of quadratic nonlinearity
+if ~(isfield(opts,'s_idx')&&isfield(opts,'qr_idx'))
+    opts.s_idx      = 1; 
+    opts.qr_idx     = [2 3];
+end
+
 nx      = prod(dim(3:end));
 
 % get default spectral estimation parameters and options
@@ -48,34 +65,37 @@ winWeight   = 1/mean(window);
 % optimizers for x*Ax
 if isfield(opts,'solver')
     switch opts.solver
-        case {'HeWatson','simpleIteration','eig'}
+        case {'MengiOverton','HeWatson','simpleIteration','eig'}
         otherwise
             error('Unknown solver.')
     end
 else
-    opts.solver = 'HeWatson';
+    opts.solver = 'MengiOverton';
+end
+
+% number of iterations to converge numerical radius
+if ~isfield(opts,'nitmax')
+    opts.nitmax = 500;
 end
 
 % standard tolerance
 if ~isfield(opts,'tol')
-    opts.tol    = 1e-8;
+    opts.tol    = 1e-6;
 end
 
 % use long-time mean if provided
 if isfield(opts,'mean')
-    x1_mean     = squeeze(opts.mean(1,:));
-    x2_mean     = squeeze(opts.mean(2,:));
-    x3_mean     = squeeze(opts.mean(3,:));
+    if strcmp(opts.mean,'none')
+    X_mean      = zeros(nVar,1);
+    mean_name   = 'zero';    
+    else
+    X_mean      = opts.mean(1:nVar,:);
     mean_name   = 'provided long-time mean';    
+    end
 else
-    x1_mean     = mean(X(:,1,:),1);
-    x2_mean     = mean(X(:,2,:),1);
-    x3_mean     = mean(X(:,3,:),1);
+    X_mean      = squeeze(mean(X(:,1:nVar,:),1));
     mean_name   = 'data mean';
 end
-x1_mean     = x1_mean(:);
-x2_mean     = x2_mean(:);
-x3_mean     = x3_mean(:);
 
 disp(['Mean                      : ' mean_name]);
 
@@ -88,86 +108,96 @@ nTriads = length(idx);
 disp(' ')
 disp('Calculating temporal DFT')
 disp('------------------------------------')
-Q1_hat = zeros(nFreq,nx,nBlks);
-Q2_hat = zeros(nFreq,nx,nBlks);
-Q3_hat = zeros(nFreq,nx,nBlks);
-for iBlk    = 1:nBlks    
+Q_hat = zeros(nFreq,nVar,nx,nBlks);
+for iBlk = 1:nBlks
     % get time index for present block
     offset                  = min((iBlk-1)*(nDFT-nOvlp)+nDFT,nt)-nDFT;
     timeIdx                 = (1:nDFT) + offset;
     disp(['block ' num2str(iBlk) '/' num2str(nBlks) ' (' ...
         num2str(timeIdx(1)) ':' num2str(timeIdx(end)) ')'])
-    % assemble block and subtract mean
-    Q1_blk   = bsxfun(@minus,squeeze(X(timeIdx,1,:)),x1_mean.');
-    Q2_blk   = bsxfun(@minus,squeeze(X(timeIdx,2,:)),x2_mean.');
-    Q3_blk   = bsxfun(@minus,squeeze(X(timeIdx,3,:)),x3_mean.');
-    
-    % window and Fourier transform block
-    Q1_blk                   = bsxfun(@times,Q1_blk,window);
-    Q1_blk_hat               = winWeight/nDFT*fft(Q1_blk);
-    Q1_blk_hat               = fftshift(Q1_blk_hat,1);
-    Q2_blk                   = bsxfun(@times,Q2_blk,window);
-    Q2_blk_hat               = winWeight/nDFT*fft(Q2_blk);
-    Q2_blk_hat               = fftshift(Q2_blk_hat,1);
-    Q3_blk                   = bsxfun(@times,Q3_blk,window);
-    Q3_blk_hat               = winWeight/nDFT*fft(Q3_blk);
-    Q3_blk_hat               = fftshift(Q3_blk_hat,1);
-    
-    Q1_hat(:,:,iBlk)         = Q1_blk_hat;
-    Q2_hat(:,:,iBlk)         = Q2_blk_hat;
-    Q3_hat(:,:,iBlk)         = Q3_blk_hat;
+    for iVar = 1:nVar
+        Q_blk          = bsxfun(@minus,squeeze(X(timeIdx,iVar,:)),squeeze(X_mean(iVar,:)));
+        Q_blk          = bsxfun(@times,Q_blk,window);
+        Q_blk_hat      = winWeight/nDFT*fft(Q_blk);
+        Q_blk_hat      = fftshift(Q_blk_hat,1);
+        Q_hat(:,iVar,:,iBlk) ...
+                       = Q_blk_hat;
+    end
 end
-clear X x Q1_blk_hat Q2_b lk_hat Q3_blk_hat Q1_blk x1_mean Q2_blk x2_mean Q3_blk x3_mean
+clear X Q_blk Q_blk_hat X_mean
 
 % loop over all triads and calculate CBMD
 L      = nan(nFreq,nFreq);
+if nargout>4
+    T      = nan(nFreq,nFreq);
+end
 disp(' ')
 disp('Calculating BMD')
 disp('------------------------------------')
-P       = zeros(2,nTriads,nx);
+
+nState      = size(opts.s_idx,1);
+nTerms      = size(opts.qr_idx,2)/2;
+P           = zeros(2,nTriads,nx*nState);
 
 if single_prec
-    P        = single(P);
-    Q1_hat   = single(Q1_hat);
-    Q2_hat   = single(Q2_hat);
-    Q3_hat   = single(Q3_hat);    
+    P       = single(P);
+    Q_hat   = single(Q_hat);
 end
 
+weights     = repmat(weight,nState,1);
 for i=1:nTriads
     disp(['(' num2str(f_idx(f1_idx(i))) ',' num2str(f_idx(f2_idx(i))) ',' num2str(f_idx(f3_idx(i))) ') (' num2str(i) '/' num2str(nTriads) ')'])
-    Q_hat_f1            = squeeze(Q1_hat(f1_idx(i),:,:));
-    Q_hat_f2            = squeeze(Q2_hat(f2_idx(i),:,:));
-    Q_hat_f3            = squeeze(Q3_hat(f3_idx(i),:,:));
+
+    Q_hat_s            = zeros(nState*nx,nBlks);
+    Q_hat_qr           = zeros(nState*nx,nBlks);
+    for j = 1:nState
+        jj      = (j-1)*nx+1:j*nx;
+        Q_hat_s(jj,:)  = squeeze(Q_hat(f3_idx(i),opts.s_idx(j),:,:));
+        for k = 1:2:2*nTerms
+        Q_hat_qr(jj,:) = Q_hat_qr(jj,:) + squeeze(Q_hat(f1_idx(i),opts.qr_idx(j,k),:,:)).*squeeze(Q_hat(f2_idx(i),opts.qr_idx(j,k+1),:,:));
+        end
+    end
     
-    Q_hat_f12           = Q_hat_f1.*Q_hat_f2;
-    B                   = Q_hat_f3'*bsxfun(@times,Q_hat_f12 ,weight)/nBlks;    
+    B                  = Q_hat_s'*bsxfun(@times,Q_hat_qr,weights)/nBlks;    
     
     % optimizer for x*Ax
     switch opts.solver
+        case {'MengiOverton'}
+            %  Mengi & Overton's algorithm
+            [r,a]  = MengiOverton(B,opts.tol,opts.nitmax);
         case {'HeWatson'}
             %  He & Watson's sophisticated iteration
-            [r,a]  = HeWatson(B,opts.tol);
+            [r,a]  = HeWatson(B,opts.tol,opts.nitmax);
         case {'simpleit'}
             %  Watson's simple iteration
-            a           = rand(nBlks,1) + 1i*rand(nBlks,1); % random initial guess
+            a      = rand(nBlks,1) + 1i*rand(nBlks,1); % random initial guess
             [r,a]  = simpleIteration(B,a);
         otherwise
             error('Unknown solver.')
     end
     
     % i+j component
-    Psi           = Q_hat_f3*a(:,1);
-    Psi           = Psi/(Psi'*(Psi.*weight)); % normalize by inner product
+    Psi           = Q_hat_s*a(:,1);
+    Psi           = Psi/sqrt(Psi'*(Psi.*weights)); % normalize by inner product
     P(1,i,:)      = Psi;
+
     % i*j component
-    Psi           = Q_hat_f12*a(:,1);
-    Psi           = Psi/(Psi'*(Psi.*weight)); % normalize by inner product
+    Psi           = Q_hat_qr*a(:,1);
+    Psi           = Psi/sqrt(Psi'*(Psi.*weights)); % normalize by inner product
     P(2,i,:)      = Psi;
-    L(f1_idx(i),f2_idx(i)) ...
+    
+    % mode bispectrum
+    L(f1_idx(i),f2_idx(i),1) ...
                   = r;
+
+    % energy transfer term
+    if nargout>4
+    T(f1_idx(i),f2_idx(i)) ...
+                  = real((Q_hat_s*a)' * (Q_hat_qr*a))/nBlks;
+    end
 end
-P   = reshape(P,[2 nTriads dim(3:end) 1]);
-end
+P   = reshape(P,[2 nTriads dim(3:end) nState]);
+end    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [window,weight,nOvlp,dt,nDFT,nBlks] = parser(nt,nx,varargin)
@@ -284,7 +314,7 @@ w       = z'*A*z;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [w,z] = HeWatson(A,tol)
+function [w,z] = HeWatson(A,tol,nitmax)
 % HEWATSON 'An Algorithm' from He & Watson (1997) that is guranteed to find
 % the global optimum upon convergence
 N       = size(A,1);
@@ -311,15 +341,91 @@ while (ub-lb)>tol || it==0
     if sum(ucirc)==0
         break
     elseif mod(it,100)==0
-        disp(['Optimizer did not converge in ' num2str(it) ' iterations! Trying new initial guess...']);
+        disp(['He & Watson algorithm did not converge in ' num2str(it) ' iterations! Trying new initial guess...']);
         z       = rand(N,1) + 1i*rand(N,1);
-    elseif it>500
-        disp(['Optimizer did not converge in ' num2str(it) ' iterations!']);
+    elseif it>=nitmax
+        disp(['He & Watson algorithm did not converge in ' num2str(it) ' iterations!']);
         break
     else
         idx = find(ucirc==1);
         z   = V(end-N+1:end,idx(1));
     end
+end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function [w,z] = MengiOverton(A,tol,nitmax)
+% MENGIOVERTON level-set algorithm from Mengi & Overton (2005) that is
+% globally convergent
+%
+% B. Yeung (byeung@ucsd.edu)
+% Last revision: 2023-08-16
+
+N       = size(A,1);
+normA   = norm(A,1);
+Z       = zeros(N);
+I       = eye(N);
+S       = [A Z; Z I];
+
+it = 0;
+phi = 0;
+while ~isempty(phi)
+    w_temp = maxFOV(A,phi);
+    [w,idx] = max(w_temp);
+    phi_max = phi(idx);
+    
+    w = w*(1+tol);
+    R       = [2*w*I -A'; I Z];
+    [~,D]   = eig(R,S,'vector');
+    isunimod   = abs(abs(D)-1) <= (sqrt(eps)*normA);
+    Dunimod = D(isunimod);
+    thetaprime = angle(Dunimod);
+    theta = [];
+    for i = 1:length(thetaprime)
+        if abs(maxFOV(A,thetaprime(i))-w)<=sqrt(eps)*w
+            theta = [theta; thetaprime(i)];
+        end
+    end
+    theta = unique(theta);
+    phi = [];
+    for i=1:length(theta)
+        lb = theta(i);
+        if i<length(theta)
+            ub = theta(i+1);
+            mid = (lb+ub)/2;
+        else
+            ub = theta(1);
+            mid = mod((lb+ub+2*pi)/2,2*pi);
+        end
+        if maxFOV(A,mid)>w
+            phi = [phi; mid];
+        end
+    end
+    it = it+1;
+    if it>=nitmax
+        disp(['Mengi & Overton algorithm did not converge in ' num2str(it) ' iterations!']);
+        break
+    end
+end
+B = A*exp(1i*phi_max);
+H = (B+B')/2;
+[V,D] = eig(H,'vector');
+[~,idx] = max(abs(D));
+z = V(:,idx);
+
+% reconstruct complex w
+w = z'*A*z;
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function lmax = maxFOV(A,theta)
+% MAXFOV maximum field of value of matrix A at angle theta
+ntheta = length(theta);
+lmax = zeros(ntheta,1);
+for i = 1:ntheta
+    A_rot = A*exp(1i*theta(i));
+    H = 0.5*(A_rot+A_rot');
+    lmax(i) = max(abs(eig(H)));
 end
 end
 
@@ -391,5 +497,4 @@ f1_idx  = f1_idx(1:count);
 f2_idx  = f2_idx(1:count);
 f3_idx  = f3_idx(1:count);
 idx     = idx(1:count);
-
 end
